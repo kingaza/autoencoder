@@ -3,13 +3,13 @@ with Keras and deconvolution layers.
 
 Reference: "Auto-Encoding Variational Bayes" https://arxiv.org/abs/1312.6114
 '''
+import math
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.stats import norm
 
 from keras.layers import Input, Dense, Lambda, Flatten, Reshape
 from keras.layers import Convolution2D, Deconvolution2D
-from keras.models import Model, load_model
+from keras.models import Model
 from keras import backend as K
 from keras import objectives
 from keras.datasets import mnist
@@ -175,26 +175,22 @@ _x_decoded_relu = decoder_deconv_3_upsamp(_deconv_2_decoded)
 _x_decoded_mean_squash = decoder_mean_squash(_x_decoded_relu)
 generator = Model(decoder_input, _x_decoded_mean_squash)
 
-# display a 2D manifold of the digits
-n = 10  # figure with 15x15 digits
+
 digit_size = 28
-figure = np.zeros((digit_size * n, digit_size * n))
-# linearly spaced coordinates on the unit square were transformed through the inverse CDF (ppf) of the Gaussian
-# to produce values of the latent variables z, since the prior of the latent space is Gaussian
-grid_x = norm.ppf(np.linspace(0.05, 0.95, n))
-grid_y = norm.ppf(np.linspace(0.05, 0.95, n))
-
-for i, yi in enumerate(grid_x):
-    for j, xi in enumerate(grid_y):
-        z_sample = np.eye(10, dtype=int)
-        x_decoded = generator.predict(z_sample, batch_size=batch_size)
-        digit = x_decoded[0].reshape(digit_size, digit_size)
-        figure[i * digit_size: (i + 1) * digit_size,
-               j * digit_size: (j + 1) * digit_size] = digit
-
-plt.figure(figsize=(10, 10))
-plt.imshow(figure, cmap='Greys_r')
-plt.show()
+row = 4
+column = 5
+n_tile = int(batch_size/math.gcd(batch_size, latent_dim))
+figure_z = np.zeros((digit_size, digit_size * latent_dim))
+z_matrix = np.eye(latent_dim, dtype=int)
+z_matrix = np.tile(z_matrix, n_tile)
+z_matrix = z_matrix.reshape((int(latent_dim*batch_size/math.gcd(batch_size, latent_dim)), latent_dim))
+z_decoded = generator.predict(z_matrix, batch_size=batch_size)
+for i in np.arange(latent_dim):
+    digit = z_decoded[i*n_tile].reshape(digit_size, digit_size)
+    figure_z[0:digit_size, i*digit_size:(i+1)*digit_size] = digit
+plt.figure(figsize=(20, 10))
+plt.imshow(figure_z, cmap='Greys_r')
+plt.show()   
 
 # encode and decode some digits
 # note that we take them from the *test* set
